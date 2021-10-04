@@ -1,0 +1,8 @@
+---
+# defaults file for OpenVSwitch
+ovs__install: False
+ovs__configure: False
+ovs__gre: Null
+ovs__bridge: ""
+ovs__gateway: ""
+...

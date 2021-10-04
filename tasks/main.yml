@@ -1,0 +1,66 @@
+---
+# Install the package
+- name: Install OpenVSwitch package
+  apt:
+    name:
+      - openvswitch-switch
+      - openvswitch-common
+  when:
+    - ovs__install
+
+- name: Create OVS bridge
+  openvswitch_bridge:
+    bridge: "{{ ovs__bridge }}"
+    state: present
+  when:
+    - ovs__install
+    - ovs__configure
+
+- name: Connect left to right GRE
+  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.right.ip }}"
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+    - ovs__gre.left.host == inventory_hostname
+
+- name: Connect right to left GRE
+  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.left.ip }}"
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+    - ovs__gre.right.host == inventory_hostname
+
+- name: Create gateway interface
+  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gateway }}" -- set interface "{{ ovs__gateway }}" type=internal
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+
+- name: Up gateway interface
+  shell: ip link set "{{ ovs__gateway }}" up
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+
+- name: Assign ip to left GW
+  shell: ip a a "{{ ovs__gre.left.gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+    - ovs__gre.left.host == inventory_hostname
+    - ovs__gre.left.gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
+
+- name: Assign ip to right GW
+  shell: ip a a "{{ ovs__gre.right.gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
+    - ovs__gre.right.host == inventory_hostname
+    - ovs__gre.right.gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
+
