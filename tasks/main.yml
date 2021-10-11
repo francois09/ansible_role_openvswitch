@@ -64,3 +64,14 @@
     - ovs__gre.right.host == inventory_hostname
     - ovs__gre.right.gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
 
+- name: Make iface config persistant
+  template:
+    src: iface_defs
+    dest: "/etc/network/interfaces.d/iface-{{ ovs__gateway }}"
+    owner: root
+    group: root
+    mode: 0644
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined

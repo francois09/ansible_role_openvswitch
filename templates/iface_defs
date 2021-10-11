@@ -1,0 +1,13 @@
+{% if ovs__gre.left.host == inventory_hostname %}
+{%   set useconf = ovs__gre.left %}
+{%   set remoteip = ovs__gre.right.ip %}
+{% else %}
+{%   set useconf = ovs__gre.right %}
+{%   set remoteip = ovs__gre.left.ip %}
+{% endif %}
+auto {{ ovs__gateway }}
+iface {{ ovs__gateway }} inet static
+  address {{ useconf.gw }}
+  netmask {{ ovs__gre.netmask }}
+  post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ ovs__gre.iface }} -- set interface {{ ovs__gre.iface }} type=gre options:remote_ip={{ remoteip }}
+  post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ ovs__gateway }} -- set interface {{ ovs__gateway }} type=internal
