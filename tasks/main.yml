@@ -16,21 +16,30 @@
     - ovs__install
     - ovs__configure
 
-- name: Connect left to right GRE
-  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.right.ip }}"
+- name: Find if peer number is 0
+  set_fact:
+    peer_num: 0
   when:
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
-    - ovs__gre.left.host == inventory_hostname
+    - ovs__gre.peers[0].host == inventory_hostname
 
-- name: Connect right to left GRE
-  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.left.ip }}"
+- name: Find if peer number is 1
+  set_fact:
+    peer_num: 1
   when:
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
-    - ovs__gre.right.host == inventory_hostname
+    - ovs__gre.peers[1].host == inventory_hostname
+
+- name: Connect peers
+  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.peers[1-peer_num].ip }}"
+  when:
+    - ovs__install
+    - ovs__configure
+    - ovs__gre is defined
 
 - name: Create gateway interface
   shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gateway }}" -- set interface "{{ ovs__gateway }}" type=internal
@@ -46,23 +55,14 @@
     - ovs__configure
     - ovs__gre is defined
 
-- name: Assign ip to left GW
-  shell: ip a a "{{ ovs__gre.left.gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
+- name: Assign ip to GW
+  shell: ip a a "{{ ovs__gre.peers[peer_num].gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
   when:
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
-    - ovs__gre.left.host == inventory_hostname
-    - ovs__gre.left.gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
-
-- name: Assign ip to right GW
-  shell: ip a a "{{ ovs__gre.right.gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
-  when:
-    - ovs__install
-    - ovs__configure
-    - ovs__gre is defined
-    - ovs__gre.right.host == inventory_hostname
-    - ovs__gre.right.gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
+    - ovs__gre.peers[peer_num].host == inventory_hostname
+    - ovs__gre.peers[peer_num].gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
 
 - name: Make iface config persistant
   template:
@@ -75,3 +75,4 @@
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
+    - ovs__gre.peers[peer_num].host == inventory_hostname
