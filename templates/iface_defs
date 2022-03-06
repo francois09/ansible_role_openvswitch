@@ -1,9 +1,9 @@
-{% if ovs__gre.left.host == inventory_hostname %}
-{%   set useconf = ovs__gre.left %}
-{%   set remoteip = ovs__gre.right.ip %}
+{% if ovs__gre.peers[0].host == inventory_hostname %}
+{%   set useconf = ovs__gre.peers[0] %}
+{%   set remoteip = ovs__gre.peers[1].ip %}
 {% else %}
-{%   set useconf = ovs__gre.right %}
-{%   set remoteip = ovs__gre.left.ip %}
+{%   set useconf = ovs__gre.peers[1] %}
+{%   set remoteip = ovs__gre.peers[0].ip %}
 {% endif %}
 auto {{ ovs__gateway }}
 iface {{ ovs__gateway }} inet static
