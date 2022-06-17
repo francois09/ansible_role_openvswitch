@@ -1,13 +1,23 @@
-{% if ovs__gre.peers[0].host == inventory_hostname %}
-{%   set useconf = ovs__gre.peers[0] %}
-{%   set remoteip = ovs__gre.peers[1].ip %}
-{% else %}
-{%   set useconf = ovs__gre.peers[1] %}
-{%   set remoteip = ovs__gre.peers[0].ip %}
-{% endif %}
+{% set usegw = [] %}
+{% set usemsk = [] %}
+{% for item in ovs__gre %}
+{%   if item.peers[0].host == inventory_hostname %}
+{%     set _ = usegw.append(item.peers[0].gw) %}
+{%     set _ = usemsk.append(item.netmask) %}
+{%   elif item.peers[1].host == inventory_hostname %}
+{%     set _ = usegw.append(item.peers[1].gw) %}
+{%     set _ = usemsk.append(item.netmask) %}
+{%   endif %}
+{% endfor %}
 auto {{ ovs__gateway }}
 iface {{ ovs__gateway }} inet static
-  address {{ useconf.gw }}
-  netmask {{ ovs__gre.netmask }}
-  post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ ovs__gre.iface }} -- set interface {{ ovs__gre.iface }} type=gre options:remote_ip={{ remoteip }}
+  address {{ usegw[0] }}
+  netmask {{ usemsk[0] }}
+{% for item in ovs__gre %}
+{%   if item.peers[0].host == inventory_hostname %}
+  post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ item.iface }} -- set interface {{ item.iface }} type=gre options:remote_ip={{ item.peers[1].ip }}
+{%   elif item.peers[1].host == inventory_hostname %}
+  post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ item.iface }} -- set interface {{ item.iface }} type=gre options:remote_ip={{ item.peers[0].ip }}
+{%   endif %}
+{% endfor %}
   post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ ovs__gateway }} -- set interface {{ ovs__gateway }} type=internal

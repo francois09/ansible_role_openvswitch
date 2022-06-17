@@ -1,0 +1,20 @@
+---
+- name: Find if peer number is 0
+  set_fact:
+    peer_num: 0
+  when:
+    - item.peers[0].host == inventory_hostname
+
+- name: Find if peer number is 1
+  set_fact:
+    peer_num: 1
+  when:
+    - item.peers[1].host == inventory_hostname
+
+- name: Connect peers
+  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ item.iface }}" -- set interface "{{ item.iface }}" type=gre options:remote_ip="{{ item.peers[1-peer_num].ip }}"
+
+- name: Assign ip to GW
+  shell: ip a a "{{ item.peers[peer_num].gw }}/{{ item.netbits }}" dev "{{ ovs__gateway }}"
+  when:
+    - item.peers[peer_num].gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
