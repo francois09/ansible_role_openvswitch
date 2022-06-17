@@ -16,31 +16,6 @@
     - ovs__install
     - ovs__configure
 
-- name: Find if peer number is 0
-  set_fact:
-    peer_num: 0
-  when:
-    - ovs__install
-    - ovs__configure
-    - ovs__gre is defined
-    - ovs__gre.peers[0].host == inventory_hostname
-
-- name: Find if peer number is 1
-  set_fact:
-    peer_num: 1
-  when:
-    - ovs__install
-    - ovs__configure
-    - ovs__gre is defined
-    - ovs__gre.peers[1].host == inventory_hostname
-
-- name: Connect peers
-  shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gre.iface }}" -- set interface "{{ ovs__gre.iface }}" type=gre options:remote_ip="{{ ovs__gre.peers[1-peer_num].ip }}"
-  when:
-    - ovs__install
-    - ovs__configure
-    - ovs__gre is defined
-
 - name: Create gateway interface
   shell: ovs-vsctl --may-exist add-port "{{ ovs__bridge }}" "{{ ovs__gateway }}" -- set interface "{{ ovs__gateway }}" type=internal
   when:
@@ -55,14 +30,14 @@
     - ovs__configure
     - ovs__gre is defined
 
-- name: Assign ip to GW
-  shell: ip a a "{{ ovs__gre.peers[peer_num].gw }}/{{ ovs__gre.netbits }}" dev "{{ ovs__gateway }}"
+- name: Loop on gre configs
+  include_tasks: config_gre.yml
+  with_items: "{{ ovs__gre }}"
   when:
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
-    - ovs__gre.peers[peer_num].host == inventory_hostname
-    - ovs__gre.peers[peer_num].gw not in hostvars[inventory_hostname]['ansible_all_ipv4_addresses']
+    - item.peers[0].host == inventory_hostname or item.peers[1].host == inventory_hostname
 
 - name: Make iface config persistant
   template:
@@ -75,4 +50,3 @@
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
-    - ovs__gre.peers[peer_num].host == inventory_hostname
