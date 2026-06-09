@@ -50,3 +50,17 @@
     - ovs__install
     - ovs__configure
     - ovs__gre is defined
+
+- name: Set the kernel option package IP forward
+  sysctl: name=net.ipv4.ip_forward value=1 reload=yes
+
+- name: Set kernel forwarding on new way
+  template:
+    src: openvswitch.conf
+    dest: "/etc/sysctl.d/01-openvswitch.conf"
+    owner: root
+    group: root
+    mode: 0644
+  when:
+    - ovs__install
+    - ovs__configure
