@@ -14,10 +14,12 @@ iface {{ ovs__gateway }} inet static
   address {{ usegw[0] }}
   netmask {{ usemsk[0] }}
 {% for item in ovs__gre %}
-{%   if item.peers[0].host == inventory_hostname %}
+{%   if item.state|default('enabled') == 'enabled' %}
+{%     if item.peers[0].host == inventory_hostname %}
   post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ item.iface }} -- set interface {{ item.iface }} type=gre options:remote_ip={{ item.peers[1].ip }}
-{%   elif item.peers[1].host == inventory_hostname %}
+{%     elif item.peers[1].host == inventory_hostname %}
   post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ item.iface }} -- set interface {{ item.iface }} type=gre options:remote_ip={{ item.peers[0].ip }}
+{%     endif %}
 {%   endif %}
 {% endfor %}
   post-up ovs-vsctl --may-exist add-port {{ ovs__bridge }} {{ ovs__gateway }} -- set interface {{ ovs__gateway }} type=internal
